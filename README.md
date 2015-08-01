@@ -1,0 +1,2 @@
+# LauncherWrapper
+This is the wrapper for the [Temporal Reality Launcher](https://github.com/TemporalReality/Launcher). This is built using Java 7 to provide a user friendly error message if Java 8 isn't installed as well as download the launcher and all required libraries.
