@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.text.*?>
+<?import java.lang.*?>
+<?import javafx.scene.layout.*?>
+
+
+<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="200.0" prefWidth="300.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1">
+   <children>
+      <Text layoutX="287.0" layoutY="51.0" strokeType="OUTSIDE" strokeWidth="0.0" text="Invalid Java Version" textAlignment="CENTER" wrappingWidth="270.41463470458984" AnchorPane.leftAnchor="15.0" AnchorPane.rightAnchor="15.0" AnchorPane.topAnchor="15.0">
+         <font>
+            <Font name="System Bold" size="24.0" />
+         </font>
+      </Text>
+      <Text layoutX="34.0" layoutY="105.0" strokeType="OUTSIDE" strokeWidth="0.0" text="Update to the latest version of Java 1.8" AnchorPane.bottomAnchor="92.0" AnchorPane.leftAnchor="34.0" AnchorPane.rightAnchor="34.2591552734375" AnchorPane.topAnchor="92.0" />
+   </children>
+</AnchorPane>

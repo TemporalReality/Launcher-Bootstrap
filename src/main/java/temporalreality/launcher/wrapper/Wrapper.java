@@ -1,108 +1,160 @@
 package temporalreality.launcher.wrapper;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import javafx.application.Application;
+import javafx.event.EventHandler;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Scene;
+import javafx.scene.layout.AnchorPane;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
+import org.jboss.shrinkwrap.resolver.api.maven.ConfigurableMavenResolverSystem;
+import org.jboss.shrinkwrap.resolver.api.maven.Maven;
 import repack.net.shadowfacts.shadowlib.util.InternetUtils;
+import temporalreality.launcher.wrapper.log.LogWindowController;
+import temporalreality.launcher.wrapper.util.StreamRedirect;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
+import java.net.URL;
 
 /**
  * @author shadowfacts
  */
-public class Wrapper {
+public class Wrapper extends Application {
 
-	public static Gson gson;
+	private static Wrapper instance;
 
-	public static void main(String[] args) throws IOException {
-		GsonBuilder builder = new GsonBuilder();
-		builder.registerTypeAdapter(DependencyManager.class, new DependencyManager.Deserializer());
-		gson = builder.create();
+	private Stage primaryStage;
+	private Process launcherProcess;
 
 
-		File latestDepUrlFile = new File(System.getProperty("user.home") + "/.temporalreality/latest.txt");
-		if (!latestDepUrlFile.getParentFile().exists()) latestDepUrlFile.getParentFile().mkdirs();
+	public Wrapper() {
+		instance = this;
+	}
 
-		String storedDepUrl = "";
-		try {
-			storedDepUrl = new String(Files.readAllBytes(latestDepUrlFile.toPath()), Charset.defaultCharset());
-		} catch (IOException e) {
-			System.err.println("There was a problem reading the dependencies url from the file.");
-			e.printStackTrace();
+	@Override
+	public void start(Stage stage) throws Exception {
+		primaryStage = stage;
+
+		if (!System.getProperty("java.version").startsWith("1.8")) {
+			FXMLLoader loader = new FXMLLoader();
+			loader.setLocation(Wrapper.class.getResource("warning/JavaWarning.fxml"));
+
+			AnchorPane pane = (AnchorPane)loader.load();
+
+			Stage dialogStage = new Stage();
+			dialogStage.setTitle("Invalid Java Version");
+			dialogStage.initModality(Modality.WINDOW_MODAL);
+			dialogStage.initOwner(primaryStage);
+			Scene scene = new Scene(pane);
+			dialogStage.setScene(scene);
+
+			dialogStage.showAndWait();
+
+			System.exit(1); // Invalid Java Version
 		}
 
-		String latestDepUrl = "";
-		try {
-			latestDepUrl = InternetUtils.getResourceAsString("https://raw.githubusercontent.com/TemporalReality/Launcher/master/version.txt");
-		} catch (IOException e) {
-			System.err.println("There was a problem getting the latest dependencies url from GitHub");
-			e.printStackTrace();
-		}
+		LogWindowController controller = showLogWindow();
 
-		File libsFolder = new File(System.getProperty("user.home") + "/.temporalreality/libs/");
+		launcherProcess = new ProcessBuilder(getLaunchCommand().split(" ")).start();
 
-		if (!libsFolder.exists()) libsFolder.mkdirs();
+		StreamRedirect output = new StreamRedirect(launcherProcess.getInputStream());
+		StreamRedirect error = new StreamRedirect(launcherProcess.getErrorStream());
+		output.start();
+		error.start();
 
-		File dependencies = new File(System.getProperty("user.home") + "/.temporalreality/versions.json");
-		if (!storedDepUrl.equals(latestDepUrl)) {
-			try {
-
-				InternetUtils.downloadFile(latestDepUrl, dependencies);
-				DependencyManager.load(dependencies);
-
-				for (File f : libsFolder.listFiles()) if (!f.isDirectory()) f.delete();
-
-				DependencyManager.getInstance().download();
-
-			} catch (IOException e) {
-				System.err.println("There was a problem downloading the dependencies specification");
-				e.printStackTrace();
+		Thread exitThread = new Thread(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					final int exitCode = launcherProcess.waitFor();
+					System.exit(exitCode);
+				} catch (Exception e) {
+					System.err.println("There was a problem while waiting for the launcher process to exit!");
+					e.printStackTrace();
+				}
 			}
+		});
+		exitThread.start();
+
+		primaryStage.setOnCloseRequest(new EventHandler<WindowEvent>() {
+			@Override
+			public void handle(WindowEvent windowEvent) {
+				launcherProcess.destroy();
+			}
+		});
+		Runtime.getRuntime().addShutdownHook(new Thread() {
+			@Override
+			public void run() {
+				launcherProcess.destroy();
+			}
+		});
+	}
+
+	public LogWindowController showLogWindow() throws IOException {
+		FXMLLoader loader = new FXMLLoader();
+		loader.setLocation(Wrapper.class.getResource("log/LogWindow.fxml"));
+
+		AnchorPane pane = (AnchorPane)loader.load();
+
+		Stage dialogStage = new Stage();
+		dialogStage.setTitle("Temporal Reality Launcher");
+		dialogStage.initModality(Modality.NONE);
+		dialogStage.initOwner(primaryStage);
+		Scene scene = new Scene(pane);
+		dialogStage.setScene(scene);
+
+		LogWindowController controller = loader.getController();
+
+		controller.setDialogStage(dialogStage);
+
+		System.setOut(controller.getPrintStream());
+		System.setErr(controller.getPrintStream());
+
+		dialogStage.show();
+
+		return controller;
+
+	}
+
+	private static String getLaunchCommand() throws Exception {
+		String latest = InternetUtils.getResourceAsString("https://raw.githubusercontent.com/TemporalReality/Launcher/master/latest.txt");
+
+		ConfigurableMavenResolverSystem resolver = Maven.configureResolver()
+				.withRemoteRepo("shadowfacts", "http://mvn.rx14.co.uk/shadowfacts/", "default")
+				.withRemoteRepo("jcenter", "http://jcenter.bintray.com/", "default");
+
+
+		URL[] libs = resolver.resolve(latest).withTransitivity().as(URL.class);
+
+		char pathSeparator;
+		if (System.getProperty("os.name").startsWith("Win")) pathSeparator = ';';
+		else pathSeparator = ':';
+
+		StringBuilder builder = new StringBuilder();
+		builder.append("java -classpath ");
+
+		for (int i = 0; i < libs.length; i++) {
+			builder.append(libs[i].getPath());
+
+			if (i != libs.length - 1) builder.append(pathSeparator);
 		}
 
+		builder.append(" temporalreality.launcher.TRLauncher");
 
+		return builder.toString();
+	}
 
+	public Process getLauncherProcess() {
+		return launcherProcess;
+	}
 
+	public static Wrapper getInstance() {
+		return instance;
+	}
 
-
-
-
-//		String depUrl = "";
-//		try {
-//			depUrl = InternetUtils.getResourceAsString("https://raw.githubusercontent.com/TemporalReality/Launcher/master/version.txt");
-//		} catch (IOException e) {
-//			System.err.println("There was a problem getting the latest version.txt");
-//		}
-//
-//		File getDeps = new File(System.getProperty("user.home") + "/.temporalreality/versions/latest.json");
-//		if (!getDeps.getParentFile().exists()) {
-//			getDeps.getParentFile().mkdirs();
-//		}
-//		if (!getDeps.exists()) {
-//			try {
-//				InternetUtils.downloadFile(depUrl, );
-//			}
-//		}
-
-//		File getDeps = new File(System.getProperty("user.home") + "/.temporalreality/versions/v0.1.0-getDeps.json");
-//		if (!getDeps.exists()) {
-//			try {
-//				InternetUtils.downloadFile("https://raw.githubusercontent.com/TemporalReality/Launcher/v0.1.0/dependencies.json", getDeps);
-//			} catch (IOException e) {
-//				System.err.println("There was a problem downloading the getDeps specification");
-//				e.printStackTrace();
-//			}
-//		}
-
-//		if (new Fil)
-//
-//		try {
-//			DependencyManager.load(InternetUtils.getResourceAsString("https://raw.githubusercontent.com/TemporalReality/Launcher/v0.1.0/dependencies.json"))
-//		} catch (IOException e) {
-//			System.err.println("There was a problem downloading");
-//		}
+	public static void main(String[] args) throws Exception {
+		launch(args);
 	}
 
 }
