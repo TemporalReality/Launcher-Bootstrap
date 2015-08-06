@@ -23,6 +23,15 @@ jar {
 	}
 }
 
+sourceSets {
+    main {
+        resources {
+            srcDirs += "src/main/java"
+            exclude '**/*.java'
+        }
+    }
+}
+
 tasks.build.dependsOn shadowJar
 
 artifacts {
