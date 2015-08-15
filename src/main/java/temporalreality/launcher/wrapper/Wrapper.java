@@ -108,8 +108,10 @@ public class Wrapper extends Application {
 
 		controller.setDialogStage(dialogStage);
 
-		System.setOut(controller.getPrintStream());
-		System.setErr(controller.getPrintStream());
+		if (!System.getProperty("temporalreality.launcher.wrapper.log").equals("false")) {
+			System.setOut(controller.getPrintStream());
+			System.setErr(controller.getPrintStream());
+		}
 
 		dialogStage.show();
 
