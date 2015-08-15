@@ -108,7 +108,9 @@ public class Wrapper extends Application {
 
 		controller.setDialogStage(dialogStage);
 
-		if (!System.getProperty("temporalreality.launcher.wrapper.log").equals("false")) {
+		String prop = System.getProperty("temporalreality.launcher.wrapper.log");
+		prop = prop == null ? "true" : prop;
+		if (!prop.equals("false")) {
 			System.setOut(controller.getPrintStream());
 			System.setErr(controller.getPrintStream());
 		}
