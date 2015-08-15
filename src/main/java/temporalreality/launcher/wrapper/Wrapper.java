@@ -120,7 +120,7 @@ public class Wrapper extends Application {
 	}
 
 	private static String getLaunchCommand() throws Exception {
-		String latest = InternetUtils.getResourceAsString("https://raw.githubusercontent.com/TemporalReality/Launcher/master/latest.txt");
+		String latest = InternetUtils.getResourceAsString("https://raw.githubusercontent.com/TemporalReality/Launcher/master/latest.txt").split("\n")[0];
 
 		ConfigurableMavenResolverSystem resolver = Maven.configureResolver()
 				.withRemoteRepo("shadowfacts", "http://mvn.rx14.co.uk/shadowfacts/", "default")
