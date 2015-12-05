@@ -14,6 +14,7 @@ import repack.net.shadowfacts.shadowlib.util.InternetUtils;
 import temporalreality.launcher.wrapper.log.LogWindowController;
 import temporalreality.launcher.wrapper.util.StreamRedirect;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 
@@ -131,17 +132,12 @@ public class Wrapper extends Application {
 
 		URL[] libs = resolver.resolve(latest).withTransitivity().as(URL.class);
 
-		char pathSeparator;
-		if (System.getProperty("os.name").startsWith("Win")) pathSeparator = ';';
-		else pathSeparator = ':';
-
 		StringBuilder builder = new StringBuilder();
 		builder.append("java -classpath ");
 
-		for (int i = 0; i < libs.length; i++) {
-			builder.append(libs[i].getPath());
-
-			if (i != libs.length - 1) builder.append(pathSeparator);
+		for (URL lib : libs) {
+			builder.append(lib.getPath());
+			builder.append(File.pathSeparator);
 		}
 
 		builder.append(" temporalreality.launcher.TRLauncher");
